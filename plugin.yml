@@ -1,0 +1,4 @@
+name: FasterTreeChopping
+main: me.bukkit.fastergameplay.FasterTreeChopping
+version: 1.0
+description: Naturally chops tree upon first chop
