@@ -19,6 +19,8 @@ public class WoodChoppedListener implements Listener {
 	private LinkedList<Block> bfsQueue;
 	private HashSet<Block> discoveredBlocks;
 	
+	private Block topLogBlock;
+	
 	public WoodChoppedListener(FasterTreeChopping plugin) {
 		plugin.getServer().getPluginManager().registerEvents(this, plugin);
 		parentPlugin = plugin;
@@ -83,14 +85,14 @@ public class WoodChoppedListener implements Listener {
 		discoveredBlocks = new HashSet<>();
 		discoveredBlocks.add(base);
 		
-		Block top = base;
+		topLogBlock = base;
 		//BFS for wood
 		while(bfsQueue.size() > 0) {
 			//get current head
 			Block block = bfsQueue.removeFirst();
 			//compare to the current top of the tree
-			if(block.getY() > top.getY()) {
-				top = block;
+			if(block.getY() > topLogBlock.getY()) {
+				topLogBlock = block;
 			}
 			//discovered undiscovered surrounding blocks
 			discoverSurroundingWoodBlocks(block);
@@ -100,18 +102,32 @@ public class WoodChoppedListener implements Listener {
 				return;
 			}
 		}
-		bfsQueue.addFirst(top);
-		//BFS for leaves
-		while(bfsQueue.size() > 0) {
-			//get current head
-			Block block = bfsQueue.removeFirst();
-			//discovered undiscovered surrounding blocks
-			discoverSurroundingLeafBlocks(block);
-			//break block
-			if(block != top) {
-				breakBlock(block, e);
-			}
-		}
+//		
+//		new Thread(new Runnable() {
+//
+//			@Override
+//			public void run() {
+//				try {
+//					Thread.sleep(1000);
+//				} catch (InterruptedException e1) {
+//					// TODO Auto-generated catch block
+//					e1.printStackTrace();
+//				}
+//				bfsQueue.addFirst(topLogBlock);
+//				//BFS for leaves
+//				while(bfsQueue.size() > 0) {
+//					//get current head
+//					Block block = bfsQueue.removeFirst();
+//					//discovered undiscovered surrounding blocks
+//					discoverSurroundingLeafBlocks(block);
+//					//break block
+//					if(block != topLogBlock) {
+//						breakBlock(block, e);
+//					}
+//				}
+//			}
+//			
+//		});//.start();
 	}
 	private void discoverSurroundingWoodBlocks(Block head) {
 		for(int i = -1; i <= 1; i++) {
