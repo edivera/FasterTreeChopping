@@ -18,11 +18,11 @@ public class WoodChoppedListener implements Listener {
 	private final static boolean fail = false;
 	private final static boolean success = true;
 	
-	private Plugin parentPlugin;
-	private LinkedList<Block> bfsQueue;
-	private HashSet<Block> discoveredBlocks;
+	private Plugin parentPlugin;	//TODO: get rid of
 	
-	private Block topLogBlock;
+	private LinkedList<Block> bfsQueue;			//general bfs queue
+	private HashSet<Block> bfsDiscoveredSet;	//general bfs discovered set
+	private LinkedList<Block> logHeadBlocks;	//log heads are log blocks with leaves next to them
 	
 	public WoodChoppedListener(FasterTreeChopping plugin) {
 		plugin.getServer().getPluginManager().registerEvents(this, plugin);
@@ -94,19 +94,14 @@ public class WoodChoppedListener implements Listener {
 		return true;
 	}
 	private boolean chopLogsWithAxeBFS(ItemStack axeInHand) {
-		topLogBlock = bfsQueue.getFirst();
 		//BFS for wood
 		while(bfsQueue.size() > 0) {
 			//get current head
 			Block block = bfsQueue.removeFirst();
-			//compare to the current top of the tree
-			if(block.getY() > topLogBlock.getY()) {
-				topLogBlock = block;
-			}
 			//discovered undiscovered surrounding blocks
 			discoverSurroundingWoodBlocks(block);
 			//break block
-			if(!breakBlock(block, axeInHand)) {
+			if(breakBlock(block, axeInHand) == fail) {
 				//if axe is broken
 				return false;
 			}
