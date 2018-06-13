@@ -15,6 +15,9 @@ import org.bukkit.event.player.PlayerItemBreakEvent;
 
 public class WoodChoppedListener implements Listener {
 
+	private final static boolean fail = false;
+	private final static boolean success = true;
+	
 	private Plugin parentPlugin;
 	private LinkedList<Block> bfsQueue;
 	private HashSet<Block> discoveredBlocks;
@@ -28,28 +31,29 @@ public class WoodChoppedListener implements Listener {
 	
 	@EventHandler
 	public void onWoodChopped(BlockBreakEvent e) {
-		//If a player did not break the block, return
-		if(e.getPlayer() == null) {
+		if(isNotATree(e.getBlock())) {
+			//if block isn't a tree, return
 			return;
 		}
 		
-		//Is it a tree?
-		if(!isBaseOfTree(e.getBlock()) || !wasChoppedByAxe(e)) {
-			//if block isn't the base of a tree, return
-			//Bukkit.getConsoleSender().sendMessage("Not a tree");
+		ItemStack itemInHand = e.getPlayer().getInventory().getItemInMainHand();
+		if(wasNotChoppedByAnAxe(itemInHand)) {
+			//if it was not chopped by an axe, return
 			return;
 		}
+		
+		if(chopFullTree(e.getBlock(), itemInHand) == fail) {
+			//if your axe broke midway
+			e.getPlayer().sendMessage("Your axe broke");
+		}
+		
 		e.getPlayer().sendMessage("You chopped a tree");
-		
-		//BFS to chop the full tree
-		chopFullTreeBFS(e);
 	}
 	
-	private boolean isBaseOfTree(Block block) {
+	private boolean isNotATree(Block block) {
 		if(block.getType() != Material.LOG) {
 			//not a wood log
-			//Bukkit.getConsoleSender().sendMessage("Not wood");
-			return false;
+			return true;
 		}
 		//it is a wood log, find the leaves by going up
 		Block ptr = block;
@@ -58,52 +62,38 @@ public class WoodChoppedListener implements Listener {
 		}
 		if(ptr.getType() != Material.LEAVES && ptr.getType() != Material.LEAVES_2) {
 			//next is not leaves, this isn't a tree
-			//Bukkit.getConsoleSender().sendMessage("Top of wood not leaves");
-			return false;
+			return true;
 		}
 		if(!((Leaves)ptr.getState().getData()).isDecayable()) {
 			//these leaves were placed, fake tree
-			//Bukkit.getConsoleSender().sendMessage("Fake leaves");
-			return false;
+			return true;
 		}
-		return true;
+		return false;
 	}
-	private boolean wasChoppedByAxe(BlockBreakEvent e) {
-		switch(e.getPlayer().getInventory().getItemInMainHand().getType()) {
+	private boolean wasNotChoppedByAnAxe(ItemStack itemInHand) {
+		switch(itemInHand.getType()) {
 			case DIAMOND_AXE:
 			case GOLD_AXE:
 			case IRON_AXE:
 			case STONE_AXE:
-			case WOOD_AXE: return true;
-			default: return false;
+			case WOOD_AXE: return false;
+			default: return true;
 		}
 	}
-	private void chopFullTreeBFS(BlockBreakEvent e) {
-		Block base = e.getBlock();
+	private boolean chopFullTree(Block base, ItemStack axeInHand) {
 		bfsQueue = new LinkedList<>();
 		bfsQueue.add(base);
 		discoveredBlocks = new HashSet<>();
 		discoveredBlocks.add(base);
 		
-		breakLogs();
-		
-		//TOOD: change leaf decay algorithm
-		breakLeaves();
-		
-//		bfsQueue.addFirst(topLogBlock);
-//		//BFS for leaves
-//		while(bfsQueue.size() > 0) {
-//			//get current head
-//			Block block = bfsQueue.removeFirst();
-//			//discovered undiscovered surrounding blocks
-//			discoverSurroundingLeafBlocks(block);
-//			//break block
-//			if(block != topLogBlock) {
-//				breakBlock(block, e);
-//			}
-//		}
+		if(!chopLogsWithAxeBFS(axeInHand)) {
+			//axe broke
+			return false;
+		}
+		leafDecay();
+		return true;
 	}
-	private void breakLogs() {
+	private boolean chopLogsWithAxeBFS(ItemStack axeInHand) {
 		topLogBlock = bfsQueue.getFirst();
 		//BFS for wood
 		while(bfsQueue.size() > 0) {
@@ -116,13 +106,14 @@ public class WoodChoppedListener implements Listener {
 			//discovered undiscovered surrounding blocks
 			discoverSurroundingWoodBlocks(block);
 			//break block
-			if(!breakBlock(block, e)) {
+			if(!breakBlock(block, axeInHand)) {
 				//if axe is broken
-				return;
+				return false;
 			}
 		}
+		return true;
 	}
-	private void breakLeaves() {
+	private void leafDecay() {
 		//search for nearby connected logs (within a radius of 5)
 			//connected implies that there is a path from the leaves to the log
 		//add the nearby logs to a list
