@@ -85,7 +85,26 @@ public class WoodChoppedListener implements Listener {
 		discoveredBlocks = new HashSet<>();
 		discoveredBlocks.add(base);
 		
-		topLogBlock = base;
+		breakLogs();
+		
+		//TOOD: change leaf decay algorithm
+		breakLeaves();
+		
+//		bfsQueue.addFirst(topLogBlock);
+//		//BFS for leaves
+//		while(bfsQueue.size() > 0) {
+//			//get current head
+//			Block block = bfsQueue.removeFirst();
+//			//discovered undiscovered surrounding blocks
+//			discoverSurroundingLeafBlocks(block);
+//			//break block
+//			if(block != topLogBlock) {
+//				breakBlock(block, e);
+//			}
+//		}
+	}
+	private void breakLogs() {
+		topLogBlock = bfsQueue.getFirst();
 		//BFS for wood
 		while(bfsQueue.size() > 0) {
 			//get current head
@@ -102,32 +121,18 @@ public class WoodChoppedListener implements Listener {
 				return;
 			}
 		}
-//		
-//		new Thread(new Runnable() {
-//
-//			@Override
-//			public void run() {
-//				try {
-//					Thread.sleep(1000);
-//				} catch (InterruptedException e1) {
-//					// TODO Auto-generated catch block
-//					e1.printStackTrace();
-//				}
-//				bfsQueue.addFirst(topLogBlock);
-//				//BFS for leaves
-//				while(bfsQueue.size() > 0) {
-//					//get current head
-//					Block block = bfsQueue.removeFirst();
-//					//discovered undiscovered surrounding blocks
-//					discoverSurroundingLeafBlocks(block);
-//					//break block
-//					if(block != topLogBlock) {
-//						breakBlock(block, e);
-//					}
-//				}
-//			}
-//			
-//		});//.start();
+	}
+	private void breakLeaves() {
+		//search for nearby connected logs (within a radius of 5)
+			//connected implies that there is a path from the leaves to the log
+		//add the nearby logs to a list
+		
+		//bfs the nearby leaves to the original log
+		//if there are no logs nearby
+			//break them
+		//else calculate if the leaf is far away from the log (far away implies connected and further than 5 blocks)
+			//if far away, break
+			//else don't break
 	}
 	private void discoverSurroundingWoodBlocks(Block head) {
 		for(int i = -1; i <= 1; i++) {
@@ -177,8 +182,14 @@ public class WoodChoppedListener implements Listener {
 			}
 		}
 		else {
-			blockToBreak.breakNaturally();
+			if(!logNearBy(blockToBreak)) {
+				blockToBreak.breakNaturally();
+			}
 		}
 		return true;
+	}
+	private boolean logNearBy(Block head) {
+		
+		return false;
 	}
 }
