@@ -3,11 +3,13 @@ package me.bukkit.fastergameplay;
 import java.util.HashSet;
 import java.util.LinkedList;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.LeavesDecayEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.Leaves;
 import org.bukkit.plugin.Plugin;
@@ -140,7 +142,7 @@ public class WoodChoppedListener implements Listener {
 		}
 	}
 	private void decaySupportedLeavesDFS(Block node, int number) {
-		if(number > 5 || isNotALeaf(node)) {
+		if(number == 5 || isNotALeaf(node)) {
 			return;
 		}
 		for(int i = -1; i <= 1; i++) {
@@ -188,7 +190,7 @@ public class WoodChoppedListener implements Listener {
 		return true;
 	}
 	private void decayLeaf(Block leaf) {
-		
+		Bukkit.getServer().getPluginManager().callEvent(new LeavesDecayEvent(leaf));
 	}
 	private boolean breakLeafBlock(Block blockToBreak) {
 		//TODO: change
