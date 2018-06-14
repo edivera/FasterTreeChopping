@@ -115,7 +115,7 @@ public class WoodChoppedListener implements Listener {
 		parentPlugin.getLogger().info("Decaying leaves");
 		for(Block head : logHeads) {
 			//DFS discover and decay surrounding leaves up to 5 blocks away
-			decaySupportedLeavesDFS(head, 0);
+			discoverSupportedLeaves(head, 0);
 		}
 		
 		
@@ -142,17 +142,20 @@ public class WoodChoppedListener implements Listener {
 			}
 		}
 	}
-	private void decaySupportedLeavesDFS(Block node, int number) {
-		if(number == 5 || isNotALeaf(node)) {
-			return;
-		}
+	private void discoverSupportedLeaves(Block node, int number) {
 		for(int i = -1; i <= 1; i++) {
 			for(int j = -1; j <= 1; j++) {
 				for(int k = -1; k <= 1; k++) {
-					decaySupportedLeavesDFS(node.getRelative(i, j, k), number+1);
+					decaySupportedLeavesDFS(node.getRelative(i, j, k), number + 1);
 				}
 			}
 		}
+	}
+	private void decaySupportedLeavesDFS(Block node, int number) {
+		if(number > 5 || isNotALeaf(node)) {
+			return;
+		}
+		discoverSupportedLeaves(node, number);
 		decayLeaf(node);
 	}
 	private boolean isNotALeaf(Block block) {
@@ -193,6 +196,7 @@ public class WoodChoppedListener implements Listener {
 	}
 	private void decayLeaf(Block leaf) {
 		parentPlugin.getLogger().info("Decay leaf block");
+		//((Leaves)leaf.getState().getData()).setDecaying(true);
 		Bukkit.getServer().getPluginManager().callEvent(new LeavesDecayEvent(leaf));
 	}
 	private boolean breakLeafBlock(Block blockToBreak) {
