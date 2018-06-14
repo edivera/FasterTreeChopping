@@ -24,6 +24,7 @@ public class WoodChoppedListener implements Listener {
 	
 	private LinkedList<Block> bfsQueue;			//general bfs queue
 	private HashSet<Block> bfsDiscoveredSet;	//general bfs discovered set
+	private HashSet<Block> dfsDiscoveredSet;
 	private HashSet<Block> logHeads;			//log heads are log blocks with leaves next to them
 	
 	public WoodChoppedListener(FasterTreeChopping plugin) {
@@ -113,6 +114,7 @@ public class WoodChoppedListener implements Listener {
 	}
 	private void leafDecay() {
 		parentPlugin.getLogger().info("Decaying leaves");
+		dfsDiscoveredSet = new HashSet<Block>();
 		for(Block head : logHeads) {
 			//DFS discover and decay surrounding leaves up to 5 blocks away
 			discoverSupportedLeaves(head, 0);
@@ -152,9 +154,12 @@ public class WoodChoppedListener implements Listener {
 		}
 	}
 	private void decaySupportedLeavesDFS(Block node, int number) {
-		if(number > 5 || isNotALeaf(node)) {
+		if(number > 5 || isNotALeaf(node) || dfsDiscoveredSet.contains(node)) {
 			return;
 		}
+		
+		dfsDiscoveredSet.add(node);
+		
 		discoverSupportedLeaves(node, number);
 		decayLeaf(node);
 	}
@@ -196,8 +201,11 @@ public class WoodChoppedListener implements Listener {
 	}
 	private void decayLeaf(Block leaf) {
 		parentPlugin.getLogger().info("Decay leaf block");
-		//((Leaves)leaf.getState().getData()).setDecaying(true);
-		Bukkit.getServer().getPluginManager().callEvent(new LeavesDecayEvent(leaf));
+		leaf.breakNaturally();
+//		Leaves leafs = ((Leaves)leaf.getState().getData());
+//		leafs.setDecaying(true);
+//		leaf.setData(leafs.getData());
+//		Bukkit.getServer().getPluginManager().callEvent(new LeavesDecayEvent(leaf));
 	}
 	private boolean breakLeafBlock(Block blockToBreak) {
 		//TODO: change
