@@ -98,7 +98,7 @@ public class WoodChoppedListener implements Listener {
 	}
 	private boolean chopLogsWithAxeBFS(ItemStack axeInHand) {
 		//BFS for wood
-		while(bfsQueue.isEmpty()) {
+		while(!bfsQueue.isEmpty()) {
 			//get current head
 			Block block = bfsQueue.removeFirst();
 			//discovered undiscovered surrounding blocks
@@ -112,6 +112,7 @@ public class WoodChoppedListener implements Listener {
 		return true;
 	}
 	private void leafDecay() {
+		parentPlugin.getLogger().info("Decaying leaves");
 		for(Block head : logHeads) {
 			//DFS discover and decay surrounding leaves up to 5 blocks away
 			decaySupportedLeavesDFS(head, 0);
@@ -178,6 +179,7 @@ public class WoodChoppedListener implements Listener {
 		}
 	}
 	private boolean breakWoodBlock(Block blockToBreak, ItemStack playerAxe) {
+		parentPlugin.getLogger().info("Breaking wood block");
 		blockToBreak.breakNaturally(playerAxe);
 		//parentPlugin.getLogger().info("Durability: " + playerAxe.getDurability());
 		playerAxe.setDurability((short)(playerAxe.getDurability() + 1));
@@ -190,6 +192,7 @@ public class WoodChoppedListener implements Listener {
 		return true;
 	}
 	private void decayLeaf(Block leaf) {
+		parentPlugin.getLogger().info("Decay leaf block");
 		Bukkit.getServer().getPluginManager().callEvent(new LeavesDecayEvent(leaf));
 	}
 	private boolean breakLeafBlock(Block blockToBreak) {
