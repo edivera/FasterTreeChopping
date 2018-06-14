@@ -23,8 +23,9 @@ public class WoodChoppedListener implements Listener {
 	private Plugin parentPlugin;	//TODO: get rid of
 	
 	private LinkedList<Block> bfsQueue;			//general bfs queue
+	private LinkedList<Integer> leafRadi;			//radi of the leaves
 	private HashSet<Block> bfsDiscoveredSet;	//general bfs discovered set
-	private HashSet<Block> dfsDiscoveredSet;
+	private HashSet<Block> dfsDiscoveredSet;	//general dfs discovered set
 	private HashSet<Block> logHeads;			//log heads are log blocks with leaves next to them
 	
 	public WoodChoppedListener(FasterTreeChopping plugin) {
@@ -114,10 +115,12 @@ public class WoodChoppedListener implements Listener {
 	}
 	private void leafDecay() {
 		parentPlugin.getLogger().info("Decaying leaves");
-		dfsDiscoveredSet = new HashSet<Block>();
+		bfsDiscoveredSet = new HashSet<Block>();
+		leafRadi = new LinkedList<Integer>();
 		for(Block head : logHeads) {
 			//DFS discover and decay surrounding leaves up to 5 blocks away
-			discoverSupportedLeaves(head, 0);
+			//discoverSupportedLeaves(head, 0);
+			discoverLeavesWithinRadius(head, 5);
 		}
 		
 		
@@ -144,25 +147,69 @@ public class WoodChoppedListener implements Listener {
 			}
 		}
 	}
-	private void discoverSupportedLeaves(Block node, int number) {
+	private void discoverLeavesWithinRadius(Block head, int maxRadius) {
+		//discover first leaves
+		discoverSurroundingBlocks(head, Material.LEAVES, Material.LEAVES_2);
+		//each of those leaves has a radius of 1
+		for(Block leaf : bfsQueue) leafRadi.add(1);
+		
+		while(!bfsQueue.isEmpty()) {
+			head = bfsQueue.removeFirst();
+			int currentRadius = leafRadi.removeFirst();
+			
+			if(maxRadius < currentRadius) {
+				continue;
+			}
+			
+			int discovered = discoverSurroundingBlocks(head, Material.LEAVES, Material.LEAVES_2);
+			
+			//increment radius for next neighbor leaves
+			for(int i = 0; i < discovered; i++) leafRadi.addLast(currentRadius+1);
+			
+			decayLeaf(head);
+			
+		}
+	}
+	private int discoverSurroundingBlocks(Block head, Material... toDiscover) {
+		int discoveredCount = 0;
 		for(int i = -1; i <= 1; i++) {
 			for(int j = -1; j <= 1; j++) {
 				for(int k = -1; k <= 1; k++) {
-					decaySupportedLeavesDFS(node.getRelative(i, j, k), number + 1);
+					Block neighbor = head.getRelative(i, j, k);
+					if(!bfsDiscoveredSet.contains(neighbor)) {
+						for(Material material : toDiscover) {
+							if(neighbor.getType() == material) {
+								bfsQueue.addLast(neighbor);
+								bfsDiscoveredSet.add(neighbor);
+								discoveredCount++;
+								break;
+							}
+						}
+					}
 				}
 			}
 		}
+		return discoveredCount;
 	}
-	private void decaySupportedLeavesDFS(Block node, int number) {
-		if(number > 5 || isNotALeaf(node) || dfsDiscoveredSet.contains(node)) {
-			return;
-		}
-		
-		dfsDiscoveredSet.add(node);
-		
-		discoverSupportedLeaves(node, number);
-		decayLeaf(node);
-	}
+//	private void discoverSupportedLeaves(Block node, int number) {
+//		for(int i = -1; i <= 1; i++) {
+//			for(int j = -1; j <= 1; j++) {
+//				for(int k = -1; k <= 1; k++) {
+//					decaySupportedLeavesDFS(node.getRelative(i, j, k), number + 1);
+//				}
+//			}
+//		}
+//	}
+//	private void decaySupportedLeavesDFS(Block node, int number) {
+//		if(number > 5 || isNotALeaf(node) || dfsDiscoveredSet.contains(node)) {
+//			return;
+//		}
+//		
+//		dfsDiscoveredSet.add(node);
+//		
+//		discoverSupportedLeaves(node, number);
+//		decayLeaf(node);
+//	}
 	private boolean isNotALeaf(Block block) {
 		return block.getType() != Material.LEAVES && block.getType() != Material.LEAVES_2;
 	}
