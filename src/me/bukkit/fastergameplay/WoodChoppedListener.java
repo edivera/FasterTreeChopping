@@ -142,6 +142,7 @@ public class WoodChoppedListener implements Listener {
 		for (int i = -1; i <= 1; i++) {
 			for (int j = -1; j <= 1; j++) {
 				for (int k = -1; k <= 1; k++) {
+					parentPlugin.getLogger().info("here");
 					if(i == k || i == -k) continue;
 					boolean headHasLeaves = discoverSurroundingBlock(head.getRelative(i, j, k));
 					if (headHasLeaves && !logsWithLeaves.contains(head)) {
@@ -165,6 +166,7 @@ public class WoodChoppedListener implements Listener {
 	private void decayTreeLeaves() {
 		parentPlugin.getLogger().info("Decaying leaves");
 		nearByLogs = new HashSet<Block>();			// keeps the nearby logs to prevent searching twice
+		leavesToDecay = new LinkedList<Block>();	// leaves to decay
 		leavesNotToDecay = new HashSet<Block>();	// protects the supported leaves from decaying
 		
 		// search for nearby logs within a chunk radius
