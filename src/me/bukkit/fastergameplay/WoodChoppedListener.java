@@ -222,7 +222,8 @@ public class WoodChoppedListener implements Listener {
 			int currentRadius = leafRadi.removeFirst();
 			if(currentRadius > 4) continue;
 			
-			leavesNotToDecay.add(head);
+			if(!leavesNotToDecay.contains(head))
+				leavesNotToDecay.add(head);
 			
 			int discovered = bfsDiscoverAdjacentLeaves(head);
 			
