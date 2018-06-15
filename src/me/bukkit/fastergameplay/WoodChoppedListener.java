@@ -142,8 +142,7 @@ public class WoodChoppedListener implements Listener {
 		for (int i = -1; i <= 1; i++) {
 			for (int j = -1; j <= 1; j++) {
 				for (int k = -1; k <= 1; k++) {
-					parentPlugin.getLogger().info("here");
-					if(i == k || i == -k) continue;
+					if((i == k || i == -k) && (i != 0 && k != 0)) continue;
 					boolean headHasLeaves = discoverSurroundingBlock(head.getRelative(i, j, k));
 					if (headHasLeaves && !logsWithLeaves.contains(head)) {
 						logsWithLeaves.add(head);
@@ -154,6 +153,7 @@ public class WoodChoppedListener implements Listener {
 	}
 
 	private boolean discoverSurroundingBlock(Block blockToDiscover) {
+		parentPlugin.getLogger().info("" + blockToDiscover.getType() + " " + !bfsDiscoveredSet.contains(blockToDiscover));
 		if ((blockToDiscover.getType() == Material.LOG) && !bfsDiscoveredSet.contains(blockToDiscover)) {
 			bfsQueue.addLast(blockToDiscover);
 			bfsDiscoveredSet.add(blockToDiscover);
@@ -229,7 +229,7 @@ public class WoodChoppedListener implements Listener {
 			
 			int discovered = bfsDiscoverAdjacentLeaves(head);
 			
-			for(int i = 0; i < discovered; i++) leafRadi.add(leafRadi.getFirst() + 1);
+			for(int i = 0; i < discovered; i++) leafRadi.add(currentRadius + 1);
 			complexity++;	//TODO: remove
 		}
 		
