@@ -11,17 +11,14 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.Leaves;
-import org.bukkit.plugin.Plugin;
 
 public class WoodChoppedListener implements Listener {
 
 	private final static boolean fail = false;
 	private final static boolean success = true;
 	
-	public static float pitch = 0.5f;
-
-	private Plugin parentPlugin; // TODO: get rid of
-
+	private BlockBreakEvent thisEvent;	// reference to the current event being handled
+	
 	private LinkedList<Block> bfsQueue;			// general use bfs queue
 	private HashSet<Block> bfsDiscoveredSet;	// general use bfs discovered set
 	
@@ -33,46 +30,39 @@ public class WoodChoppedListener implements Listener {
 	private LinkedList<Block> leavesToDecay; // stored leaves scheduled to decay
 	private HashSet<Block> leavesNotToDecay; // leaves supported by other trees
 	
-	private BlockBreakEvent thisEvent;	// reference to the current event being handled
 	
-	private int complexity;	//debugging complexity TODO: remove
-
 	public WoodChoppedListener(FasterTreeChopping plugin) {
 		plugin.getServer().getPluginManager().registerEvents(this, plugin);
-		parentPlugin = plugin;
 	}
 
+	
 	@EventHandler
-	public void onWoodChopped(BlockBreakEvent e) {
-		thisEvent = e;
-		if (isNotATree(e.getBlock())) {
+	public void onWoodChopped(BlockBreakEvent blockBreakEvent) {
+		thisEvent = blockBreakEvent;
+		
+		if (isNotATree(blockBreakEvent.getBlock())) {
 			// if block isn't a tree, return
 			return;
 		}
 
-		ItemStack itemInHand = e.getPlayer().getInventory().getItemInMainHand();
-		if (wasNotChoppedByAnAxe(itemInHand)) {
-			// if it was not chopped by an axe, return
+		ItemStack axeInHand = blockBreakEvent.getPlayer().getInventory().getItemInMainHand();
+		if (wasNotChoppedWithAnAxe(axeInHand)) {
+			// if it was not chopped using an axe, return
 			return;
 		}
 
-		complexity = 0;	//TODO: remove
-		
-		if (chopFullTree(e.getBlock(), itemInHand) == fail) {
+		if (chopFullTreeWithAxe(axeInHand) == fail) {
 			// if your axe broke midway
-			e.getPlayer().sendMessage("Your axe broke");
+			blockBreakEvent.getPlayer().sendMessage("Your axe broke");
 			return;
 		}
-
-		e.getPlayer().sendMessage("You chopped a tree");
-		
-		parentPlugin.getLogger().info("Complexity: " + complexity);	//TODO: remove
+		blockBreakEvent.getPlayer().sendMessage("You chopped a tree");
 	}
 
+	
 	private boolean isATree(Block block) {
 		return !isNotATree(block);
 	}
-
 	private boolean isNotATree(Block block) {
 		if (block.getType() != Material.LOG) {
 			// not a wood log
@@ -93,8 +83,7 @@ public class WoodChoppedListener implements Listener {
 		}
 		return false;
 	}
-
-	private boolean wasNotChoppedByAnAxe(ItemStack itemInHand) {
+	private boolean wasNotChoppedWithAnAxe(ItemStack itemInHand) {
 		switch (itemInHand.getType()) {
 		case DIAMOND_AXE:
 		case GOLD_AXE:
@@ -107,7 +96,8 @@ public class WoodChoppedListener implements Listener {
 		}
 	}
 
-	private boolean chopFullTree(Block base, ItemStack axeInHand) {
+	private boolean chopFullTreeWithAxe(ItemStack axeInHand) {
+		Block base = thisEvent.getBlock();
 		if (chopLogsWithAxeBFS(base, axeInHand) == fail) {
 			// axe broke
 			return fail;
@@ -115,7 +105,7 @@ public class WoodChoppedListener implements Listener {
 		decayTreeLeaves();
 		return success;
 	}
-
+	
 	private boolean chopLogsWithAxeBFS(Block base, ItemStack axeInHand) {
 		bfsQueue = new LinkedList<Block>();			// clean bfs queue
 		bfsDiscoveredSet = new HashSet<Block>();	// used to discover wood blocks for the tree
@@ -138,7 +128,6 @@ public class WoodChoppedListener implements Listener {
 		}
 		return success;
 	}
-
 	private void discoverSurroundingWoodBlocks(Block head) {
 		for (int i = -1; i <= 1; i++) {
 			for (int j = -1; j <= 1; j++) {
@@ -152,9 +141,7 @@ public class WoodChoppedListener implements Listener {
 			}
 		}
 	}
-
 	private boolean discoverSurroundingBlock(Block blockToDiscover) {
-		parentPlugin.getLogger().info("" + blockToDiscover.getType() + " " + !bfsDiscoveredSet.contains(blockToDiscover));
 		if ((blockToDiscover.getType() == Material.LOG) && !bfsDiscoveredSet.contains(blockToDiscover)) {
 			bfsQueue.addLast(blockToDiscover);
 			bfsDiscoveredSet.add(blockToDiscover);
@@ -163,14 +150,33 @@ public class WoodChoppedListener implements Listener {
 		}
 		return false;
 	}
-
+	private boolean breakWoodBlock(Block blockToBreak, ItemStack playerAxe) {
+		blockToBreak.breakNaturally(playerAxe);
+		//parentPlugin.getLogger().info("Durability: " + playerAxe.getDurability());
+		playerAxe.setDurability((short)(playerAxe.getDurability() + 1));
+		if (playerAxe.getType().getMaxDurability() - playerAxe.getDurability() < 0) {
+			//parentPlugin.getLogger().info("Axe should have broken");
+			thisEvent.getPlayer().playSound(thisEvent.getPlayer().getLocation(), Sound.ENTITY_ITEM_BREAK,
+					3.0f, 0.866f);
+			thisEvent.getPlayer().getInventory().remove(playerAxe);
+			return fail;
+		}
+		return success;
+	}
+	
 	private void decayTreeLeaves() {
-		parentPlugin.getLogger().info("Decaying leaves");
-		nearByLogs = new HashSet<Block>();			// keeps the nearby logs to prevent searching twice
-		leavesToDecay = new LinkedList<Block>();	// leaves to decay
-		leavesNotToDecay = new HashSet<Block>();	// protects the supported leaves from decaying
+		// search for nearby logs within a chunk radius and protects leaves
+		protectLeavesAroundCloseLogs();
 		
-		// search for nearby logs within a chunk radius
+		findUnprotectedLeavesToDecayBFS();
+
+		// decay all leaves at once at the end
+		decayLeaves();
+	}
+	private void protectLeavesAroundCloseLogs() {
+		nearByLogs = new HashSet<Block>();			// keeps the nearby logs to prevent searching twice
+		leavesNotToDecay = new HashSet<Block>();	// protects the supported leaves from decaying
+		// finds close logs
 		for (Block head : logsWithLeaves) {
 			for (int xOff = -8; xOff < 8; xOff++) {
 				for(int yOff = -8; yOff < 8; yOff++) {	//TODO: could be optimized
@@ -181,43 +187,14 @@ public class WoodChoppedListener implements Listener {
 								continue;
 							}
 							nearByLogs.add(relative);
-							protectLeavesAround(relative);
+							protectLeavesAroundBFS(relative);
 						}
 					}
 				}
 			}
 		}
-		
-		
-		bfsQueue = new LinkedList<Block>();			// clean bfs queue
-		
-		for (Block head : logsWithLeaves) {
-			leafRadi = new LinkedList<Integer>();		// used to constrain bfs
-			bfsDiscoveredSet = new HashSet<Block>();	// used to discover leaves from the chopped tree
-			bfsDiscoverAdjacentLeaves(head);
-			
-			for(int i = 0; i < bfsQueue.size(); i++) leafRadi.addLast(1);
-			
-			while (!bfsQueue.isEmpty()) {
-				Block leaf = bfsQueue.removeFirst();
-				int radius = leafRadi.removeFirst();
-				if(radius > 4) continue;
-				
-				int discovered = bfsDiscoverAdjacentLeaves(leaf);
-				
-				for(int i = 0; i < discovered; i++) leafRadi.addLast(radius + 1);
-				
-				scheduleLeafToDecay(leaf);  //TODO: this is what needs to change to decide which decays
-				complexity++;	//TODO: remove
-			}
-		}
-
-		// decay all leaves at once at the end
-		decayLeaves();
-
 	}
-
-	private void protectLeavesAround(Block wood) {
+	private void protectLeavesAroundBFS(Block wood) {
 		
 		bfsQueue = new LinkedList<Block>();			// clean bfs queue
 		bfsDiscoveredSet = new HashSet<Block>();	// used to discover leaves that are supported by other trees
@@ -238,43 +215,33 @@ public class WoodChoppedListener implements Listener {
 			int discovered = bfsDiscoverAdjacentLeaves(head);
 			
 			for(int i = 0; i < discovered; i++) leafRadi.addLast(currentRadius + 1);
-			complexity++;	//TODO: remove
 		}
 		
 	}
-
-	private void decayLeaves() {
-		for (Block decayingLeaf : leavesToDecay) {
-			decayingLeaf.breakNaturally();
+	private void findUnprotectedLeavesToDecayBFS() {
+		leavesToDecay = new LinkedList<Block>();	// leaves to decay
+		bfsQueue = new LinkedList<Block>();			// clean bfs queue
+		
+		for (Block head : logsWithLeaves) {				//TODO: could be optimized with Djiktra's
+			leafRadi = new LinkedList<Integer>();		// used to constrain bfs
+			bfsDiscoveredSet = new HashSet<Block>();	// used to discover leaves from the chopped tree
+			bfsDiscoverAdjacentLeaves(head);
+			
+			for(int i = 0; i < bfsQueue.size(); i++) leafRadi.addLast(1);
+			
+			while (!bfsQueue.isEmpty()) {
+				Block leaf = bfsQueue.removeFirst();
+				int radius = leafRadi.removeFirst();
+				if(radius > 4) continue;
+				
+				int discovered = bfsDiscoverAdjacentLeaves(leaf);
+				
+				for(int i = 0; i < discovered; i++) leafRadi.addLast(radius + 1);
+				
+				scheduleLeafToDecay(leaf);
+			}
 		}
 	}
-
-//	private void discoverLeavesWithinRadius(Block head, int maxRadius) {
-//		// discover first leaves
-//		bfsDiscoverAdjacentLeaves(head, Material.LEAVES, Material.LEAVES_2);
-//		// each of those leaves has a radius of 1
-//		for (Block leaf : bfsQueue)
-//			leafRadi.add(1);
-//
-//		while (!bfsQueue.isEmpty()) {
-//			head = bfsQueue.removeFirst();
-//			int currentRadius = leafRadi.removeFirst();
-//
-//			if (maxRadius < currentRadius) {
-//				continue;
-//			}
-//
-//			int discovered = bfsDiscoverAdjacentLeaves(head, Material.LEAVES, Material.LEAVES_2);
-//
-//			// increment radius for next neighbor leaves
-//			for (int i = 0; i < discovered; i++)
-//				leafRadi.addLast(currentRadius + 1);
-//
-//			scheduleLeafToDecay(head);
-//
-//		}
-//	}
-
 	private int bfsDiscoverAdjacentLeaves(Block head) {
 		final int[] xOff = { 0, -1, 1, 0,  0, 0};
 		final int[] yOff = {-1,  0, 0, 0,  0, 1};
@@ -288,37 +255,24 @@ public class WoodChoppedListener implements Listener {
 		return discoveredCount;
 	}
 	private int bfsDiscoverLeaf(Block leaf) {
-		if (!bfsDiscoveredSet.contains(leaf) && isLeaf(leaf)) {
+		if (!bfsDiscoveredSet.contains(leaf) && isALeaf(leaf)) {
 			bfsQueue.addLast(leaf);
 			bfsDiscoveredSet.add(leaf);
 			return 1;
 		}
 		return 0;
 	}
-
-	private boolean isLeaf(Block block) {
+	private boolean isALeaf(Block block) {
 		return block.getType() == Material.LEAVES || block.getType() == Material.LEAVES_2;
 	}
-	
-	private boolean breakWoodBlock(Block blockToBreak, ItemStack playerAxe) {
-		blockToBreak.breakNaturally(playerAxe);
-		//parentPlugin.getLogger().info("Durability: " + playerAxe.getDurability());
-		playerAxe.setDurability((short)(playerAxe.getDurability() + 1));
-		if (playerAxe.getType().getMaxDurability() - playerAxe.getDurability() < 0) {
-			//parentPlugin.getLogger().info("Axe should have broken");
-			thisEvent.getPlayer().playSound(thisEvent.getPlayer().getLocation(), Sound.ENTITY_ITEM_BREAK,
-					3.0f, pitch);
-			thisEvent.getPlayer().getInventory().remove(playerAxe);
-			return fail;
-		}
-		return success;
-	}
-
 	private void scheduleLeafToDecay(Block leaf) {
-		//parentPlugin.getLogger().info("Decay leaf block");
-		
 		if(!leavesNotToDecay.contains(leaf) && !leavesToDecay.contains(leaf)) {
 			leavesToDecay.add(leaf);
+		}
+	}
+	private void decayLeaves() {
+		for (Block decayingLeaf : leavesToDecay) {
+			decayingLeaf.breakNaturally();
 		}
 	}
 }
