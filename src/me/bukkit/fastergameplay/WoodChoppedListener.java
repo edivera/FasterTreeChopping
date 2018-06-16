@@ -1,22 +1,16 @@
 package me.bukkit.fastergameplay;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.TreeSpecies;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.LeavesDecayEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.Leaves;
-import org.bukkit.material.Wood;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.event.player.PlayerItemBreakEvent;
 
 public class WoodChoppedListener implements Listener {
 
@@ -191,15 +185,22 @@ public class WoodChoppedListener implements Listener {
 		bfsQueue = new LinkedList<Block>();			// clean bfs queue
 		
 		for (Block head : logsWithLeaves) {
+			leafRadi = new LinkedList<Integer>();		// used to constrain bfs
 			bfsDiscoveredSet = new HashSet<Block>();	// used to discover leaves from the chopped tree
 			bfsDiscoverAdjacentLeaves(head);
 			
+			for(int i = 0; i < bfsQueue.size(); i++) leafRadi.addLast(1);
+			
 			while (!bfsQueue.isEmpty()) {
 				Block leaf = bfsQueue.removeFirst();
+				int radius = leafRadi.removeFirst();
+				if(radius > 4) continue;
 				
-				bfsDiscoverAdjacentLeaves(leaf);
+				int discovered = bfsDiscoverAdjacentLeaves(leaf);
 				
-				scheduleLeafToDecay(leaf);  //TODO: this is what neeeds to change to decide which decays
+				for(int i = 0; i < discovered; i++) leafRadi.addLast(radius + 1);
+				
+				scheduleLeafToDecay(leaf);  //TODO: this is what needs to change to decide which decays
 				complexity++;	//TODO: remove
 			}
 		}
@@ -229,7 +230,7 @@ public class WoodChoppedListener implements Listener {
 			
 			int discovered = bfsDiscoverAdjacentLeaves(head);
 			
-			for(int i = 0; i < discovered; i++) leafRadi.add(currentRadius + 1);
+			for(int i = 0; i < discovered; i++) leafRadi.addLast(currentRadius + 1);
 			complexity++;	//TODO: remove
 		}
 		
@@ -291,16 +292,7 @@ public class WoodChoppedListener implements Listener {
 	private boolean isLeaf(Block block) {
 		return block.getType() == Material.LEAVES || block.getType() == Material.LEAVES_2;
 	}
-
-	private void discoverLeafBlock(Block blockToDiscover) {
-		Material type = blockToDiscover.getType();
-		if ((type == Material.LEAVES || type == Material.LEAVES_2) && !bfsDiscoveredSet.contains(blockToDiscover)
-				&& ((Leaves) blockToDiscover.getState().getData()).isDecaying()) {
-			bfsQueue.addLast(blockToDiscover);
-			bfsDiscoveredSet.add(blockToDiscover);
-		}
-	}
-
+	
 	private boolean breakWoodBlock(Block blockToBreak, ItemStack playerAxe) {
 		//parentPlugin.getLogger().info("Breaking wood block");
 		blockToBreak.breakNaturally(playerAxe);
@@ -318,7 +310,7 @@ public class WoodChoppedListener implements Listener {
 	private void scheduleLeafToDecay(Block leaf) {
 		//parentPlugin.getLogger().info("Decay leaf block");
 		
-		if(!leavesNotToDecay.contains(leaf)) {
+		if(!leavesNotToDecay.contains(leaf) && !leavesToDecay.contains(leaf)) {
 			leavesToDecay.add(leaf);
 		}
 	}
