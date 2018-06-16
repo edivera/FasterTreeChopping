@@ -232,7 +232,7 @@ public class WoodChoppedListener implements Listener {
 			while (!bfsQueue.isEmpty()) {
 				Block leaf = bfsQueue.removeFirst();
 				int radius = leafRadi.removeFirst();
-				if(radius > 4) continue;
+				if(radius > 5) continue;
 				
 				int discovered = bfsDiscoverAdjacentLeaves(leaf);
 				
