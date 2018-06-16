@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -16,6 +17,8 @@ public class WoodChoppedListener implements Listener {
 
 	private final static boolean fail = false;
 	private final static boolean success = true;
+	
+	public static float pitch = 0.5f;
 
 	private Plugin parentPlugin; // TODO: get rid of
 
@@ -30,6 +33,8 @@ public class WoodChoppedListener implements Listener {
 	private LinkedList<Block> leavesToDecay; // stored leaves scheduled to decay
 	private HashSet<Block> leavesNotToDecay; // leaves supported by other trees
 	
+	private BlockBreakEvent thisEvent;	// reference to the current event being handled
+	
 	private int complexity;	//debugging complexity TODO: remove
 
 	public WoodChoppedListener(FasterTreeChopping plugin) {
@@ -39,6 +44,7 @@ public class WoodChoppedListener implements Listener {
 
 	@EventHandler
 	public void onWoodChopped(BlockBreakEvent e) {
+		thisEvent = e;
 		if (isNotATree(e.getBlock())) {
 			// if block isn't a tree, return
 			return;
@@ -55,6 +61,7 @@ public class WoodChoppedListener implements Listener {
 		if (chopFullTree(e.getBlock(), itemInHand) == fail) {
 			// if your axe broke midway
 			e.getPlayer().sendMessage("Your axe broke");
+			return;
 		}
 
 		e.getPlayer().sendMessage("You chopped a tree");
@@ -103,10 +110,10 @@ public class WoodChoppedListener implements Listener {
 	private boolean chopFullTree(Block base, ItemStack axeInHand) {
 		if (chopLogsWithAxeBFS(base, axeInHand) == fail) {
 			// axe broke
-			return false;
+			return fail;
 		}
 		decayTreeLeaves();
-		return true;
+		return success;
 	}
 
 	private boolean chopLogsWithAxeBFS(Block base, ItemStack axeInHand) {
@@ -126,10 +133,10 @@ public class WoodChoppedListener implements Listener {
 			// break block
 			if (breakWoodBlock(block, axeInHand) == fail) {
 				// if axe is broken
-				return false;
+				return fail;
 			}
 		}
-		return true;
+		return success;
 	}
 
 	private void discoverSurroundingWoodBlocks(Block head) {
@@ -294,17 +301,17 @@ public class WoodChoppedListener implements Listener {
 	}
 	
 	private boolean breakWoodBlock(Block blockToBreak, ItemStack playerAxe) {
-		//parentPlugin.getLogger().info("Breaking wood block");
 		blockToBreak.breakNaturally(playerAxe);
-		// parentPlugin.getLogger().info("Durability: " + playerAxe.getDurability());
-		playerAxe.setDurability((short) (playerAxe.getDurability() + 1));
-		if (playerAxe.getDurability() < 0) {
-			// TODO: get the axe to break
-			// parentPlugin.getServer().getPluginManager().callEvent(
-			// new PlayerItemBreakEvent(e.getPlayer(), playerAxe));
-			return false;
+		//parentPlugin.getLogger().info("Durability: " + playerAxe.getDurability());
+		playerAxe.setDurability((short)(playerAxe.getDurability() + 1));
+		if (playerAxe.getType().getMaxDurability() - playerAxe.getDurability() < 0) {
+			//parentPlugin.getLogger().info("Axe should have broken");
+			thisEvent.getPlayer().playSound(thisEvent.getPlayer().getLocation(), Sound.ENTITY_ITEM_BREAK,
+					3.0f, pitch);
+			thisEvent.getPlayer().getInventory().remove(playerAxe);
+			return fail;
 		}
-		return true;
+		return success;
 	}
 
 	private void scheduleLeafToDecay(Block leaf) {
