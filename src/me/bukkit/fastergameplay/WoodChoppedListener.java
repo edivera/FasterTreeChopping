@@ -32,12 +32,8 @@ public class WoodChoppedListener implements Listener {
 	private LinkedList<Block> leavesToDecay; // stored leaves scheduled to decay
 	private HashSet<Block> leavesNotToDecay; // leaves supported by other trees
 	
-	private Plugin parentPlugin;
-	
-	
 	public WoodChoppedListener(FasterTreeChopping plugin) {
 		plugin.getServer().getPluginManager().registerEvents(this, plugin);
-		parentPlugin = plugin;
 	}
 
 	
@@ -161,7 +157,6 @@ public class WoodChoppedListener implements Listener {
 		consumeAxeUse(playerAxe);
 		
 		if (playerAxe.getType().getMaxDurability() - playerAxe.getDurability() < 0) {
-			//parentPlugin.getLogger().info("Axe should have broken");
 			thisEvent.getPlayer().playSound(thisEvent.getPlayer().getLocation(), Sound.ENTITY_ITEM_BREAK,
 					3.0f, 0.866f);
 			thisEvent.getPlayer().getInventory().remove(playerAxe);
