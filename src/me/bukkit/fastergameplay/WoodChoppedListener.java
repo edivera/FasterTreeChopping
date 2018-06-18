@@ -6,11 +6,13 @@ import java.util.LinkedList;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.material.Leaves;
+import org.bukkit.plugin.Plugin;
 
 public class WoodChoppedListener implements Listener {
 
@@ -30,9 +32,12 @@ public class WoodChoppedListener implements Listener {
 	private LinkedList<Block> leavesToDecay; // stored leaves scheduled to decay
 	private HashSet<Block> leavesNotToDecay; // leaves supported by other trees
 	
+	private Plugin parentPlugin;
+	
 	
 	public WoodChoppedListener(FasterTreeChopping plugin) {
 		plugin.getServer().getPluginManager().registerEvents(this, plugin);
+		parentPlugin = plugin;
 	}
 
 	
@@ -152,8 +157,9 @@ public class WoodChoppedListener implements Listener {
 	}
 	private boolean breakWoodBlock(Block blockToBreak, ItemStack playerAxe) {
 		blockToBreak.breakNaturally(playerAxe);
-		//parentPlugin.getLogger().info("Durability: " + playerAxe.getDurability());
-		playerAxe.setDurability((short)(playerAxe.getDurability() + 1));
+		
+		consumeAxeUse(playerAxe);
+		
 		if (playerAxe.getType().getMaxDurability() - playerAxe.getDurability() < 0) {
 			//parentPlugin.getLogger().info("Axe should have broken");
 			thisEvent.getPlayer().playSound(thisEvent.getPlayer().getLocation(), Sound.ENTITY_ITEM_BREAK,
@@ -164,6 +170,13 @@ public class WoodChoppedListener implements Listener {
 		return success;
 	}
 	
+	private void consumeAxeUse(ItemStack playerAxe) {
+		int unbreaking = playerAxe.getEnchantmentLevel(Enchantment.DURABILITY);
+		if(Math.random() <= 1.0 / (unbreaking + 1))
+			playerAxe.setDurability((short)(playerAxe.getDurability() + 1));
+	}
+
+
 	private void decayTreeLeaves() {
 		// search for nearby logs within a chunk radius and protects leaves
 		protectLeavesAroundCloseLogs();
