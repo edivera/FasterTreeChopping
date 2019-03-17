@@ -57,7 +57,7 @@ public class WoodChoppedListener implements Listener {
 			blockBreakEvent.getPlayer().sendMessage("Your axe broke");
 			return;
 		}
-		blockBreakEvent.getPlayer().sendMessage("You chopped a tree");
+		//blockBreakEvent.getPlayer().sendMessage("You chopped a tree");
 	}
 
 	
